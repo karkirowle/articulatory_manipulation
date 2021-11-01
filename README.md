@@ -19,12 +19,22 @@ using bi-directional long short-term memory.” [Online]. Avail-
 able: https://www.isca-speech.org/archive/Interspeech{\ }2018/
 pdfs/0999
 
+### Preprocessing
+
+To run the preprocessing,
+
+```
+python preprocessing.py
+```
 
 ### Check list
 
-- Normalisation
-- RNN with 4 hidden layer and 150 GRU units
-- Delay?
-- Vocoder features
-- Remove silences
-- 
+- [X] Normalisation
+- [X] RNN with 4 hidden layer and 150 GRU units
+- [X] Vocoder features 
+- [ ] Remove silences
+- [X] Add the third electrode dimension (orientation is not included usually)
+- [ ] Filtering MGCs?
+- [ ] Batch size
+- [X] MLPG
+#- 

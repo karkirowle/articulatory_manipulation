@@ -6,11 +6,20 @@ import scipy
 import scipy.interpolate
 from torch.nn.utils.rnn import pad_sequence
 from nnmnkwii.datasets import FileDataSource, FileSourceDataset, PaddedFileSourceDataset
+from nnmnkwii.preprocessing import meanstd
+from nnmnkwii.preprocessing import delta_features
+
 import librosa
 import itertools
 import pyworld as pw
 
 import matplotlib.pyplot as plt
+
+windows = [
+    (0, 0, np.array([1.0])),
+    (1, 1, np.array([-0.5, 0.0, 0.5])),
+    (1, 1, np.array([1.0, -2.0, 1.0]))]
+
 
 
 class MFCCSource(FileDataSource):
@@ -18,6 +27,7 @@ class MFCCSource(FileDataSource):
         self.data_root = data_root
         self.max_files = max_files
         self.alpha = None
+
 
     def collect_files(self):
         files = open(self.data_root).read().splitlines()
@@ -31,19 +41,16 @@ class MFCCSource(FileDataSource):
         x, fs = librosa.load(wav_path,sr=16000)
         frame_time = 10 / 1000
         hop_time = 5 / 1000
-        hop_length = int(hop_time * 16000)
-        frame_length = int(frame_time * 16000)
+        # TODO: Here make sure you have the correct analysis window size
+        #hop_length = int(hop_time * 16000)
+        #frame_length = int(frame_time * 16000)
         #n_mels = 40
         x = x.astype(np.float64)
         f0, sp, ap = pw.wav2world(x, fs)
-        coded_sp = pw.code_spectral_envelope(sp, fs, 40)
+        coded_sp = pw.code_spectral_envelope(sp, fs, 60)
         mfcc = coded_sp
-
-        mfcc = mfcc[:,1:]
-
-
-
-        return mfcc.astype(np.float32), wav_path
+        mfcc_delta = delta_features(mfcc, windows).astype(np.float32)
+        return mfcc_delta
 
 
 class ArticulatorySource(FileDataSource):
@@ -96,17 +103,33 @@ class ArticulatorySource(FileDataSource):
                 channel_name = line.split()[1]
                 columns[channel_name] = channel_number
                 line = self.clean(f.readline())
-
-            string = f.read()
-            data = np.fromstring(string, dtype='float32')
+        # with open(ema_path, 'rb') as ema_annotation:
+        #     column_names = [0] * 87
+        #     for line in ema_annotation:
+        #         line = line.decode('latin-1').strip("\n")
+        #         if line == 'EST_Header_End':
+        #             break
+        #         elif line.startswith('NumFrames'):
+        #             n_frames = int(line.rsplit(' ', 1)[-1])
+        #         elif line.startswith('Channel_'):
+        #             col_id, col_name = line.split(' ', 1)
+        #             column_names[int(col_id.split('_', 1)[-1])] = col_name
+        #
+        #
+        #     ema_data = np.fromfile(ema_annotation, "float32").reshape(n_frames, 87 + 2)
+            ema_buffer = f.read()
+            data = np.fromstring(ema_buffer, dtype='float32')
             data_ = np.reshape(data, (-1, len(columns)))
 
             # There is a list of columns here we can select from, but looking around github, mostly the below are used
 
             articulators = [
-                'T1_py', 'T1_px', 'T3_py', 'T3_px', 'T2_py', 'T2_px',
-                'jaw_py', 'jaw_px', 'upperlip_py', 'upperlip_px',
-                'lowerlip_py', 'lowerlip_px']
+                'T1_py', 'T1_px', 'T1_pz',
+                'T3_py', 'T3_px', 'T3_pz',
+                'T2_py', 'T2_px', 'T3_pz',
+                'jaw_py', 'jaw_px', 'jaw_pz',
+                'upperlip_py', 'upperlip_px', 'upperlip_pz',
+                'lowerlip_py', 'lowerlip_px', 'lowerlip_pz']
             articulator_idx = [columns[articulator] for articulator in articulators]
 
             data_out = data_[:, articulator_idx]
@@ -119,15 +142,35 @@ class ArticulatorySource(FileDataSource):
                 for j in np.argwhere(np.isnan(data_out)).ravel():
                     data_out[j] = scipy.interpolate.splev(j, spline)
 
-        return data_out, ema_path
+        delta_ema = delta_features(data_out, windows)
+        return delta_ema
 
 class NanamiDataset(Dataset):
     """
     Generic wrapper around nnmnkwii datsets
     """
-    def __init__(self,speech_padded_file_source,art_padded_file_source):
+    def __init__(self,speech_padded_file_source,art_padded_file_source, norm_calc):
         self.speech = speech_padded_file_source
         self.art = art_padded_file_source
+
+        self.input_meanstd = None
+        self.output_meanstd = None
+
+        if norm_calc:
+
+            print("Performing articulatory feature normalization (input)...")
+            art_lengths = [len(y) for y in self.art]
+            self.input_meanstd = meanstd(self.art, art_lengths)
+            np.save("output_mean.npy", self.input_meanstd[0])
+            np.save("output_std.npy", self.input_meanstd[1])
+            print("Performing speech feature normalization (output)...")
+            speech_lengths = [len(y) for y in self.speech]
+            self.output_meanstd = meanstd(self.speech, speech_lengths)
+            np.save("input_mean.npy", self.output_meanstd[0])
+            np.save("input_std.npy", self.output_meanstd[1])
+
+            #np.save(self.output_meanstd[0], "output_mean.npy")
+            #np.save(self.output_meanstd[1], "output_std.npy")
 
     def __len__(self):
         return len(self.speech)
@@ -136,7 +179,21 @@ class NanamiDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
+        input_mean, input_std = self.input_meanstd
+        output_mean, output_std = self.output_meanstd
+        normalised_art = (self.art[idx] - input_mean) / input_std
+        normalised_speech = (self.speech[idx] - output_mean) / output_std
 
+        synced_art = scipy.signal.resample(normalised_art, num=self.speech[idx].shape[0])
+        #art_temp = scipy.signal.resample(self.art[idx][0], num=self.speech[idx][0].shape[0])
+        return torch.FloatTensor(synced_art), torch.FloatTensor(normalised_speech)
 
-        art_temp = scipy.signal.resample(self.art[idx][0], num=self.speech[idx][0].shape[0])
-        return torch.FloatTensor(self.speech[idx][0]), torch.FloatTensor(art_temp)
+def pad_collate(batch):
+    (xx, yy) = zip(*batch)
+    x_lens = [len(x) for x in xx]
+    y_lens = [len(y) for y in yy]
+    xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
+    yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
+
+    #mask = pad_sequence([torch.ones_like(y) for y in yy], batch_first=True, padding_value=0)
+    return xx_pad,  yy_pad, x_lens, y_lens

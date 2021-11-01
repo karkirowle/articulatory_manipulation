@@ -2,8 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-
+import matplotlib.pyplot as plt
 from nnmnkwii.metrics import melcd
+
+from utils.synthesis_utils import static_delta_delta_to_static
+
 
 class GaussianNoise(nn.Module):
     """Gaussian noise regularizer.
@@ -37,8 +40,8 @@ class GRU_Model(pl.LightningModule):
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("GRU_Model")
-        parser.add_argument("--num_layers", type=int, default=4)
-        parser.add_argument("--hidden_dim", type=int, default=150)
+        parser.add_argument("--num_layers", type=int, default=3)
+        parser.add_argument("--hidden_dim", type=int, default=256)
         return parent_parser
 
     def __init__(self, input_dim, output_dim, args):
@@ -62,20 +65,35 @@ class GRU_Model(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         # training_step defines the train loop. It is independent of forward
-        x, y = batch
+        x, y, x_len, y_len = batch
         x_hat = self.forward(x)
-        #print("x_hat", x_hat.shape)
-        #print("y", y.shape)
-        loss = F.mse_loss(x_hat, y)
-        mcd_loss = melcd(x_hat, y)
+        loss = F.mse_loss(x_hat[:,:y_len[0],:], y[:,:y_len[0],:])
+        mcd_loss = melcd(x_hat[0,:y_len[0],:], y[0,:y_len[0],:])
         self.log("train_loss", loss)
         self.log("melcd", mcd_loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self.training_step(batch, batch_idx)
+        x, y, x_len, y_len = batch
+        x_hat = self.forward(x)
+        loss = F.mse_loss(x_hat, y)
+
+        #static_x_hat = static_delta_delta_to_static(x_hat.detach().cpu().numpy()[0,:,:])
+        mcd_loss = melcd(x_hat[:,:,:60].cpu().numpy(), y[0,:,:60].cpu().numpy())
+        #print("MCD", mcd_loss)
+        self.log("val_loss", loss)
+        self.log("val_melcd", mcd_loss)
+        return loss
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        x_hat = self.forward(x)
+        loss = F.mse_loss(x_hat, y)
+        mcd_loss = melcd(x_hat, y)
+        self.log("test_loss", loss)
+        self.log("test_melcd", mcd_loss)
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.003)
         return optimizer
