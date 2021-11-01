@@ -28,9 +28,9 @@ windows = [
 ]
 
 def preprocessing():
-    train_y = FileSourceDataset(MFCCSource("partitions/trainfiles.txt"))
-    train_x = FileSourceDataset(ArticulatorySource("partitions/trainfiles.txt"))
-    train_nanami = NanamiDataset(train_x, train_y, norm_calc=True)
+    train_speech = FileSourceDataset(MFCCSource("partitions/trainfiles.txt",save=True))
+    train_art = FileSourceDataset(ArticulatorySource("partitions/trainfiles.txt",save=True))
+    train_nanami = NanamiDataset(train_speech, train_art, norm_calc=True)
     train = DataLoader(train_nanami, batch_size=1, num_workers=4)
 
 def check_preprocessing():

@@ -17,8 +17,8 @@ def worker_init_fn(worker_id):
 
 def train(parser):
 
-    train_speech = FileSourceDataset(MFCCSource("partitions/trainfiles.txt"))
-    train_art = FileSourceDataset(ArticulatorySource("partitions/trainfiles.txt"))
+    train_speech = FileSourceDataset(MFCCSource("partitions/trainfiles.txt", load=True))
+    train_art = FileSourceDataset(ArticulatorySource("partitions/trainfiles.txt", load=True))
     # TODO: ONLY FOR REPRODUCTION PURPOSES
     val_speech = FileSourceDataset(MFCCSource("partitions/testfiles.txt"))
     val_art = FileSourceDataset(ArticulatorySource("partitions/testfiles.txt"))
@@ -27,7 +27,7 @@ def train(parser):
 
     train_nanami = NanamiDataset(train_speech, train_art, norm_calc=False)
 
-    input_mean, input_std, output_mean, output_std = load_normalisation()
+    input_mean,  input_std, output_mean, output_std = load_normalisation()
     #input_mean = np.zeros_like(input_mean)
     #input_std = np.ones_like(input_std)
     #output_mean = np.zeros_like(output_mean)
@@ -35,7 +35,7 @@ def train(parser):
     train_nanami.input_meanstd = (input_mean, input_std)
     train_nanami.output_meanstd = (output_mean, output_std)
 
-    train = DataLoader(train_nanami, batch_size=1, num_workers=4, shuffle=True, collate_fn=pad_collate)
+    train = DataLoader(train_nanami, batch_size=16, num_workers=4, shuffle=True, collate_fn=pad_collate)
 
     val_nanami = NanamiDataset(val_speech, val_art, norm_calc=False)
     val_nanami.input_meanstd = train_nanami.input_meanstd
@@ -53,7 +53,8 @@ def train(parser):
                                             deterministic=True,
                                             max_epochs=20)
 
-    autoencoder = GRU_Model(input_dim=54, output_dim=180, args=args)
+    autoencoder = GRU_Model(input_dim=54, output_dim=180, learning_rate=0.003, args=args)
+    #trainer.tune(autoencoder)
     trainer.fit(autoencoder, train, val)
 
 if __name__ == '__main__':

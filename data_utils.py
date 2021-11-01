@@ -15,6 +15,7 @@ import pyworld as pw
 
 import matplotlib.pyplot as plt
 
+import os
 windows = [
     (0, 0, np.array([1.0])),
     (1, 1, np.array([-0.5, 0.0, 0.5])),
@@ -23,10 +24,12 @@ windows = [
 
 
 class MFCCSource(FileDataSource):
-    def __init__(self,data_root,max_files=None):
+    def __init__(self,data_root,max_files=None, save=False, load=False):
         self.data_root = data_root
         self.max_files = max_files
         self.alpha = None
+        self.save = save
+        self.load = load
 
 
     def collect_files(self):
@@ -38,6 +41,10 @@ class MFCCSource(FileDataSource):
         return all_files_flattened
 
     def collect_features(self, wav_path):
+
+        if self.load:
+            return np.load(os.path.join("preprocessed", "mfcc", os.path.basename(wav_path).split(".")[0] + ".npy"))
+
         x, fs = librosa.load(wav_path,sr=16000)
         frame_time = 10 / 1000
         hop_time = 5 / 1000
@@ -50,14 +57,18 @@ class MFCCSource(FileDataSource):
         coded_sp = pw.code_spectral_envelope(sp, fs, 60)
         mfcc = coded_sp
         mfcc_delta = delta_features(mfcc, windows).astype(np.float32)
+        if self.save:
+            np.save(os.path.join("preprocessed", "mfcc", os.path.basename(wav_path).replace(".wav", ".npy")), mfcc_delta)
         return mfcc_delta
 
 
 class ArticulatorySource(FileDataSource):
-    def __init__(self,data_root,max_files=None):
+    def __init__(self,data_root,max_files=None, save=False, load=False):
         self.data_root = data_root
         self.max_files = max_files
         self.alpha = None
+        self.save = save
+        self.load = load
 
     def collect_files(self):
         files = open(self.data_root).read().splitlines()
@@ -81,6 +92,8 @@ class ArticulatorySource(FileDataSource):
 
     def collect_features(self, ema_path):
 
+        if self.load:
+            return np.load(os.path.join("preprocessed","ema",os.path.basename(ema_path).split(".")[0] + ".npy"))
         columns = {}
         columns["time"] = 0
         columns["present"] = 1
@@ -143,6 +156,9 @@ class ArticulatorySource(FileDataSource):
                     data_out[j] = scipy.interpolate.splev(j, spline)
 
         delta_ema = delta_features(data_out, windows)
+
+        if self.save:
+            np.save(os.path.join("preprocessed","ema",os.path.basename(ema_path).split(".")[0] + ".npy"), delta_ema)
         return delta_ema
 
 class NanamiDataset(Dataset):
@@ -161,13 +177,13 @@ class NanamiDataset(Dataset):
             print("Performing articulatory feature normalization (input)...")
             art_lengths = [len(y) for y in self.art]
             self.input_meanstd = meanstd(self.art, art_lengths)
-            np.save("output_mean.npy", self.input_meanstd[0])
-            np.save("output_std.npy", self.input_meanstd[1])
+            np.save("input_mean.npy", self.input_meanstd[0])
+            np.save("input_std.npy", self.input_meanstd[1])
             print("Performing speech feature normalization (output)...")
             speech_lengths = [len(y) for y in self.speech]
             self.output_meanstd = meanstd(self.speech, speech_lengths)
-            np.save("input_mean.npy", self.output_meanstd[0])
-            np.save("input_std.npy", self.output_meanstd[1])
+            np.save("output_mean.npy", self.output_meanstd[0])
+            np.save("output_std.npy", self.output_meanstd[1])
 
             #np.save(self.output_meanstd[0], "output_mean.npy")
             #np.save(self.output_meanstd[1], "output_std.npy")

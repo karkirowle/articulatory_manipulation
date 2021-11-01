@@ -44,10 +44,10 @@ class GRU_Model(pl.LightningModule):
         parser.add_argument("--hidden_dim", type=int, default=256)
         return parent_parser
 
-    def __init__(self, input_dim, output_dim, args):
+    def __init__(self, input_dim, output_dim,learning_rate, args):
         super().__init__()
         #self.noise = GaussianNoise()
-
+        self.learning_rate = learning_rate
         # GRU layers share number of hidden layer parameter
 
         self.gru_1a = nn.GRU(input_dim, args.hidden_dim, num_layers=args.num_layers, bidirectional=True, batch_first=True)
@@ -95,5 +95,5 @@ class GRU_Model(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.003)
+        optimizer = torch.optim.Adam(self.parameters(), lr=(self.learning_rate))
         return optimizer
