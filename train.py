@@ -35,7 +35,7 @@ def train(parser):
     train_nanami.input_meanstd = (input_mean, input_std)
     train_nanami.output_meanstd = (output_mean, output_std)
 
-    train = DataLoader(train_nanami, batch_size=16, num_workers=4, shuffle=True, collate_fn=pad_collate)
+    train = DataLoader(train_nanami, batch_size=32, num_workers=4, shuffle=True, collate_fn=pad_collate)
 
     val_nanami = NanamiDataset(val_speech, val_art, norm_calc=False)
     val_nanami.input_meanstd = train_nanami.input_meanstd
@@ -51,7 +51,8 @@ def train(parser):
                                             logger=TensorBoardLogger("logs",
                                                                      name='gru_model_hidden_{}_num_layer_{}'.format(args.hidden_dim, args.num_layers)),
                                             deterministic=True,
-                                            max_epochs=20)
+                                            max_epochs=50,
+                                            accumulate_grad_batches=32)
 
     autoencoder = GRU_Model(input_dim=54, output_dim=180, learning_rate=0.003,
                             input_meanstd=train_nanami.input_meanstd,

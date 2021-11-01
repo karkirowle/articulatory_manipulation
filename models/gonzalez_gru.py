@@ -82,10 +82,10 @@ class GRU_Model(pl.LightningModule):
 
         #static_x_hat = static_delta_delta_to_static(x_hat.detach().cpu().numpy()[0,:,:])
 
-        denormalised_hat = (x_hat.detach().cpu().numpy()[:,:,:60] * self.output_meanstd[1][:60]) + self.output_meanstd[0][:60]
+        denormalised_hat = (x_hat[:,:60] * self.output_meanstd[1][:60]) + self.output_meanstd[0][:60]
         denormalised_y = (y.detach().cpu().numpy()[0,:,:60] * self.output_meanstd[1][:60]) + self.output_meanstd[0][:60]
 
-        mcd_loss = melcd(denormalised_hat, denormalised_y)
+        mcd_loss = melcd(denormalised_hat[:,1:60], denormalised_y[:,1:60])
         #mcd_loss = melcd(x_hat[:,:,:60].cpu().numpy(), y[0,:,:60].cpu().numpy())
         #print("MCD", mcd_loss)
         self.log("val_loss", loss)
