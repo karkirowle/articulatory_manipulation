@@ -53,7 +53,10 @@ def train(parser):
                                             deterministic=True,
                                             max_epochs=20)
 
-    autoencoder = GRU_Model(input_dim=54, output_dim=180, learning_rate=0.003, args=args)
+    autoencoder = GRU_Model(input_dim=54, output_dim=180, learning_rate=0.003,
+                            input_meanstd=train_nanami.input_meanstd,
+                            output_meanstd=train_nanami.output_meanstd,
+                            args=args)
     #trainer.tune(autoencoder)
     trainer.fit(autoencoder, train, val)
 

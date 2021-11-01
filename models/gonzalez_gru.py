@@ -44,10 +44,12 @@ class GRU_Model(pl.LightningModule):
         parser.add_argument("--hidden_dim", type=int, default=256)
         return parent_parser
 
-    def __init__(self, input_dim, output_dim,learning_rate, args):
+    def __init__(self, input_dim, output_dim,learning_rate, input_meanstd, output_meanstd, args):
         super().__init__()
         #self.noise = GaussianNoise()
         self.learning_rate = learning_rate
+        self.input_meanstd = input_meanstd
+        self.output_meanstd = output_meanstd
         # GRU layers share number of hidden layer parameter
 
         self.gru_1a = nn.GRU(input_dim, args.hidden_dim, num_layers=args.num_layers, bidirectional=True, batch_first=True)
@@ -79,7 +81,12 @@ class GRU_Model(pl.LightningModule):
         loss = F.mse_loss(x_hat, y)
 
         #static_x_hat = static_delta_delta_to_static(x_hat.detach().cpu().numpy()[0,:,:])
-        mcd_loss = melcd(x_hat[:,:,:60].cpu().numpy(), y[0,:,:60].cpu().numpy())
+
+        denormalised_hat = (x_hat.detach().cpu().numpy()[:,:,:60] * self.output_meanstd[1][:60]) + self.output_meanstd[0][:60]
+        denormalised_y = (y.detach().cpu().numpy()[0,:,:60] * self.output_meanstd[1][:60]) + self.output_meanstd[0][:60]
+
+        mcd_loss = melcd(denormalised_hat, denormalised_y)
+        #mcd_loss = melcd(x_hat[:,:,:60].cpu().numpy(), y[0,:,:60].cpu().numpy())
         #print("MCD", mcd_loss)
         self.log("val_loss", loss)
         self.log("val_melcd", mcd_loss)
