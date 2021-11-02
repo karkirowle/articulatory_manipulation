@@ -18,6 +18,10 @@ SPEECH, vol. 2017-Augus, pp. 3986–3990, 2017.
 using bi-directional long short-term memory.” [Online]. Avail-
 able: https://www.isca-speech.org/archive/Interspeech{\ }2018/
 pdfs/0999
+* CAO, Beiming, et al. Articulation-to-Speech Synthesis Using Articulatory Flesh Point Sensors' Orientation Information. In: INTERSPEECH. 2018. p. 3152-3156.  
+
+
+
 
 ### Preprocessing
 
@@ -27,14 +31,31 @@ To run the preprocessing,
 python preprocessing.py
 ```
 
-### Check list
+### Train
 
-- [X] Normalisation
-- [X] RNN with 4 hidden layer and 150 GRU units
-- [X] Vocoder features 
-- [ ] Remove silences
-- [X] Add the third electrode dimension (orientation is not included usually)
-- [ ] Filtering MGCs?
-- [ ] Batch size
-- [X] MLPG
-#- 
+To train the model, and save the model, run the following command:
+
+```
+python train.py
+```
+
+### Synthesis
+
+To synthesis the test set of the MNGU corpus
+```
+python synthesise.py
+```
+
+
+### Results
+
+After careful experimentation, I learned the following:
+- In the MCD calculation, there are many important details including:
+  - The 0th power has to be excluded from the calculation
+  - The MCD is calculated with respect to the modspec_smoothed signal
+  - MCD can be cheated with 0 paddding: I suspect some of the ambitious RNNs might be due to padding with zeroes
+
+It can very well be that I missed an important detail in my code or there is a bug in my code, feel free to make a pull
+request for that.
+
+

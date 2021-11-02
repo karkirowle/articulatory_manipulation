@@ -7,7 +7,7 @@ import scipy.interpolate
 from torch.nn.utils.rnn import pad_sequence
 from nnmnkwii.datasets import FileDataSource, FileSourceDataset, PaddedFileSourceDataset
 from nnmnkwii.preprocessing import meanstd
-from nnmnkwii.preprocessing import delta_features
+from nnmnkwii.preprocessing import delta_features, modspec_smoothing
 
 import librosa
 import itertools
@@ -49,17 +49,24 @@ class MFCCSource(FileDataSource):
         frame_time = 10 / 1000
         hop_time = 5 / 1000
         # TODO: Here make sure you have the correct analysis window size
-        #hop_length = int(hop_time * 16000)
+        hop_length = int(hop_time * 16000)
         #frame_length = int(frame_time * 16000)
         #n_mels = 40
         x = x.astype(np.float64)
         f0, sp, ap = pw.wav2world(x, fs)
         coded_sp = pw.code_spectral_envelope(sp, fs, 60)
-        mfcc = coded_sp
+        mfcc = modspec_smoothing(coded_sp, 16000 / hop_length)
+
         mfcc_delta = delta_features(mfcc, windows).astype(np.float32)
+
+
+        #mfcc_delta_trimmed = remove_silence(wav_path, mfcc_delta)
+        mfcc_delta_trimmed = mfcc_delta
         if self.save:
-            np.save(os.path.join("preprocessed", "mfcc", os.path.basename(wav_path).replace(".wav", ".npy")), mfcc_delta)
-        return mfcc_delta
+            np.save(os.path.join("preprocessed", "mfcc", os.path.basename(wav_path).replace(".wav", ".npy")),
+                    mfcc_delta_trimmed)
+
+        return mfcc_delta_trimmed
 
 
 class ArticulatorySource(FileDataSource):
@@ -156,10 +163,12 @@ class ArticulatorySource(FileDataSource):
                     data_out[j] = scipy.interpolate.splev(j, spline)
 
         delta_ema = delta_features(data_out, windows)
+        delta_ema_trimmed = delta_ema
+        #delta_ema_trimmed = remove_silence(ema_path, delta_ema)
 
         if self.save:
-            np.save(os.path.join("preprocessed","ema",os.path.basename(ema_path).split(".")[0] + ".npy"), delta_ema)
-        return delta_ema
+            np.save(os.path.join("preprocessed","ema",os.path.basename(ema_path).split(".")[0] + ".npy"), delta_ema_trimmed)
+        return delta_ema_trimmed
 
 class NanamiDataset(Dataset):
     """
@@ -213,3 +222,37 @@ def pad_collate(batch):
 
     #mask = pad_sequence([torch.ones_like(y) for y in yy], batch_first=True, padding_value=0)
     return xx_pad,  yy_pad, x_lens, y_lens
+
+def remove_silence(file_name, feature):
+    """
+    :param file_name:  path to the .ema/.wav file which has the identifier as basename
+    :param ema: the ema list of traj
+    :param mfcc: the mfcc features
+    :return: the data (ema and mfcc) without the silence at the beginning and end of the recording
+    reads the annotation file to get (in sec) the extremity of the voice,
+    calculates the equivalence in # of ema points and # of mfcc frames
+    """
+    #marge = 0
+    path = os.path.join("/home/boomkin/ownCloud/transcriptions_mngu0/mngu0",
+                        os.path.basename(file_name).split(".")[0] + ".lab")
+    with open(path) as file:
+        while next(file) != '#\n':
+            pass
+
+        # This results in three tab-separated columns AFAIK
+
+        # List of tuples (start,label)
+        labels = [row.strip('\n').strip('\t').replace(' 26 ', '').split('\t') for row in file]
+    labels = [(round(float(label[0]), 2), label[1]) for label in labels]
+    start_time = labels[0][0] if labels[0][1] == '#' else 0
+    end_time = labels[-2][0] if labels[-1][1] == '#' else labels[-1][0]
+    start_time_in_samples = int(np.floor(max(start_time,0) * 200))
+    end_time_in_samples = int(min(np.floor(end_time * 200) + 1, len(feature)))
+
+    feature_trimmed = feature[start_time_in_samples:end_time_in_samples,:]
+
+    return feature_trimmed
+    #mfcc = mfcc[xtrm_temp_mfcc[0]:xtrm_temp_mfcc[1]]
+    #ema = ema[xtrm_temp_ema[0]:xtrm_temp_ema[1], :]
+    #return ema, mfcc
+
