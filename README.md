@@ -21,7 +21,13 @@ pdfs/0999
 * CAO, Beiming, et al. Articulation-to-Speech Synthesis Using Articulatory Flesh Point Sensors' Orientation Information. In: INTERSPEECH. 2018. p. 3152-3156.  
 
 
+### Installation
 
+To reconstruct my conda environment, please use
+
+```
+conda env create -f environment.yml
+`
 
 ### Preprocessing
 
