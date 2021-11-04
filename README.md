@@ -59,7 +59,7 @@ After careful experimentation, I learned the following:
 - In the MCD calculation, there are many important details including:
   - The 0th power has to be excluded from the calculation
   - The MCD is calculated with respect to the modspec_smoothed signal
-  - MCD can be cheated with 0 paddding: I suspect some of the ambitious RNNs might be due to padding with zeroes
+  - MCD can be cheated with 0 paddding: I suspect some of the ambitious MCDs might be due to padding with zeroes due to large batch training
 
 It can very well be that I missed an important detail in my code or there is a bug in my code, feel free to make a pull
 request for that.
