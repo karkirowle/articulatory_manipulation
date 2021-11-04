@@ -27,7 +27,7 @@ To reconstruct my conda environment, please use
 
 ```
 conda env create -f environment.yml
-`
+```
 
 ### Preprocessing
 
