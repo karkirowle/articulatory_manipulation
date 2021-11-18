@@ -46,6 +46,7 @@ def check_preprocessing():
     print("Output mean: ", output_mean.shape)
     print("Output std: ", output_std.shape)
 
+
 def load_normalisation():
 
     input_mean = np.load("input_mean.npy")

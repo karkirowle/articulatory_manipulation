@@ -21,7 +21,7 @@ import argparse
 from nnmnkwii.metrics import melcd
 from preprocessing import load_normalisation
 from utils.synthesis_utils import static_delta_delta_to_static
-
+from data_utils import remove_silence
 vocoder_dim = 60
 fs = 16000
 def synthesise_audio_from_test_set(test_set_file: str):
@@ -83,14 +83,16 @@ def synthesise_audio_from_test_set(test_set_file: str):
         predicted_sp = static_delta_delta_to_static(predicted_sp_delta)
         predicted_sp = predicted_sp * output_meanstd[1][:vocoder_dim] + output_meanstd[0][:vocoder_dim]
         encoded_sp[:,1:] = predicted_sp[:,1:]
-
+        trimmed_encoded_sp = remove_silence(audio_path[0], predicted_sp)
+        trimmed_f0 = remove_silence(audio_path[0], f0[:,None])
+        trimmed_ap = remove_silence(audio_path[0], ap)
         fft_size = pw.get_cheaptrick_fft_size(fs)
-        full_sp = pw.decode_spectral_envelope(encoded_sp, fs, fft_size)
+        full_sp = pw.decode_spectral_envelope(trimmed_encoded_sp, fs, fft_size)
 
         #pw.decode_spectral_envelope()
 
         os.makedirs("logs/gru_model_hidden_150_num_layer_4/version_86/test_audios",exist_ok=True)
-        y = pw.synthesize(f0, full_sp, ap, fs)
+        y = pw.synthesize(trimmed_f0[:,0], full_sp, trimmed_ap, fs)
 
         y = librosa.util.normalize(y)
         plt.plot(y)

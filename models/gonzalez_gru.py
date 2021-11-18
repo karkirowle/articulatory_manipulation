@@ -12,7 +12,8 @@ from utils.synthesis_utils import static_delta_delta_to_static
 
 
 from nnmnkwii import autograd
-
+from fastdtw import fastdtw
+import scipy
 
 import numpy as np
 
@@ -105,7 +106,16 @@ class GRU_Model(pl.LightningModule):
         denormalised_hat = (static_x_hat[:,:dim] * self.output_meanstd[1][:dim]) + self.output_meanstd[0][:dim]
         denormalised_y = (y.detach().cpu().numpy()[0,:,:dim] * self.output_meanstd[1][:dim]) + self.output_meanstd[0][:dim]
 
-        mcd_loss = melcd(denormalised_hat[:,1:dim], denormalised_y[:,1:dim])
+        # Alignment is used in some algorithms and I think it's guaranteed that perform can only improve with this
+        _, path = fastdtw(
+            denormalised_hat[:,1:dim],
+            denormalised_y[:,1:dim],
+            dist=scipy.spatial.distance.euclidean,
+        )
+        twf_pow = np.array(path).T
+
+        mcd_loss = melcd(denormalised_hat[twf_pow[0],1:dim], denormalised_y[twf_pow[1],1:dim])
+
         #mcd_loss = melcd(x_hat[:,:,:60].cpu().numpy(), y[0,:,:60].cpu().numpy())
         #print("MCD", mcd_loss)
         self.log("val_loss", loss)

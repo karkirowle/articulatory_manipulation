@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 from glob import glob
 import scipy
 import scipy.interpolate
+from scipy.io import wavfile
+
 from torch.nn.utils.rnn import pad_sequence
 from nnmnkwii.datasets import FileDataSource, FileSourceDataset, PaddedFileSourceDataset
 from nnmnkwii.preprocessing import meanstd
@@ -15,6 +17,7 @@ import pyworld as pw
 
 import matplotlib.pyplot as plt
 
+import sounddevice as sd
 import os
 windows = [
     (0, 0, np.array([1.0])),
@@ -45,9 +48,21 @@ class MFCCSource(FileDataSource):
         if self.load:
             return np.load(os.path.join("preprocessed", "mfcc", os.path.basename(wav_path).split(".")[0] + ".npy"))
 
+
         x, fs = librosa.load(wav_path,sr=16000)
+        #fs, x = wavfile.read(wav_path)
+        #assert fs == 16000
+        #x = np.array(x, dtype=np.float64)
+
+        #shift_levels = [-1,-2,-3,0,1,2,3]
+        #n_step_choice = np.random.choice(shift_levels)
+        #x = librosa.effects.pitch_shift(x, sr=16000, n_steps=n_step_choice)
+
         frame_time = 10 / 1000
         hop_time = 5 / 1000
+        #sd.play(x,16000)
+        #sd.wait()
+
         # TODO: Here make sure you have the correct analysis window size
         hop_length = int(hop_time * 16000)
         #frame_length = int(frame_time * 16000)
@@ -256,3 +271,11 @@ def remove_silence(file_name, feature):
     #ema = ema[xtrm_temp_ema[0]:xtrm_temp_ema[1], :]
     #return ema, mfcc
 
+if __name__ == '__main__':
+    print("")
+    #wav_path = "/home/boomkin/ownCloud/mngu0_wav/mngu0_wav/eval/mngu0_s1_0010.wav"
+    #x, fs = librosa.load(wav_path, sr=16000)
+    #x = librosa.effects.pitch_shift(x, sr=16000, n_steps=1)
+    #x = librosa.util.normalize(x)
+    #sd.play(x, 16000)
+    #sd.wait()

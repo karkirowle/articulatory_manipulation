@@ -16,7 +16,6 @@ def worker_init_fn(worker_id):
     np.random.seed(manual_seed + worker_id)
 
 def train(parser):
-
     train_speech = FileSourceDataset(MFCCSource("partitions/trainfiles.txt", load=True))
     train_art = FileSourceDataset(ArticulatorySource("partitions/trainfiles.txt", load=True))
     # TODO: ONLY FOR REPRODUCTION PURPOSES
@@ -35,7 +34,7 @@ def train(parser):
     train_nanami.input_meanstd = (input_mean, input_std)
     train_nanami.output_meanstd = (output_mean, output_std)
 
-    train = DataLoader(train_nanami, batch_size=1, num_workers=4, shuffle=True, collate_fn=pad_collate)
+    train = DataLoader(train_nanami, batch_size=4, num_workers=4, shuffle=True, collate_fn=pad_collate)
 
     val_nanami = NanamiDataset(val_speech, val_art, norm_calc=False)
     val_nanami.input_meanstd = train_nanami.input_meanstd
@@ -63,7 +62,8 @@ def train(parser):
 
 if __name__ == '__main__':
 
-    manual_seed = 0
+    # ORIGINAL = 0
+    manual_seed = 42
     parser = ArgumentParser()
     train(parser)
 
