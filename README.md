@@ -1,7 +1,7 @@
 
 ## Articulatory to acoustic synthesis
 
-This paper is our developed baseline for the articulatory to acoustic synthesis and manipulation task presented in our Interspeech 2022 paper.
+This repo contains our baseline for the articulatory to acoustic synthesis and manipulation task presented in our Interspeech 2022 paper. 
 
 
 ### Installation
