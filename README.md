@@ -1,6 +1,11 @@
 
 ## Articulatory to acoustic synthesis
 
+
+
+[![DOI](https://zenodo.org/badge/469740748.svg)](https://zenodo.org/badge/latestdoi/469740748)
+
+
 This repo contains our baseline for the articulatory to acoustic synthesis and manipulation task presented in our Interspeech 2022 paper. 
 
 
